@@ -1,7 +1,7 @@
 import config
-import getpass
 import os
 from colorama import Fore, Back, Style
+from getpass import getpass
 from mysql.connector import connect
 
 clear = lambda : os.system('cls')
@@ -10,20 +10,22 @@ def main():
     connection = connect(
         host="localhost",
         user="root",
-        password="redhat6"
+        password="redhat6",
+        database="ATM"
     )
     
     mode = get_mode()
     if mode == 0:
-        user()
+        user(connection)
     else:
         admin()
-    
+
+
 def get_mode():
     import keyboard
     
     term = ["Choose a mode: \n", "[*]", "User\n", Fore.RED, "[ ]", "Admin", Style.RESET_ALL]
-    mode = 0
+    
     clear()
     print(''.join(term))
     while True:
@@ -49,22 +51,37 @@ def get_mode():
                 
                 clear()
                 print(''.join(term))
-
     
+
 def admin():
     creds = get_creds('admin')
 
 
-def user():
+def user(conn):
+    input(); clear() # This is a weird fix IDK what is wrong
     creds = get_creds('user')
-    
+
+    cursor = conn.cursor()
+
+    query = "SELECT cardno, pin FROM card"
+
+    cursor.execute(query)
+    print(cursor.fetchall())
+
+    # Check if card exists
+
+    # Offer options to the user such as "Withdraw, Check Balance"
+
 
 def get_creds(user: str):
     if user == "user":
-        acc_no = input("ATM No:")
+        card_no = input("Card No: ")
+        pin = getpass("Pin: ")
+
+        # Add a check if the pin is 4 digits and account number is 11 digits
         
-        print(acc_no)
-        return (acc_no,)
+        return (card_no, pin)
+    
     elif user == "admin":
         return None
 
