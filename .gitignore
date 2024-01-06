@@ -1,1 +1,19 @@
+# virtual environments
+venv/
 .venv/
+
+# Setup scripts
+scripts/
+
+# binaries
+__pycache__/
+
+# ENVIRONMENT VARIABLES
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# tests
+tests/
