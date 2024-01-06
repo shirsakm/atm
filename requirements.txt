@@ -1,3 +1,8 @@
 colorama
 mysql-connector-python
 keyboard
+
+python-dotenv
+
+# For Testing ONLY
+requests
