@@ -10,7 +10,7 @@ load_dotenv()
 clear = lambda : os.system('cls')
 
 def main():
-    connection = connect(
+    conn = connect(
         host=os.getenv("DB_host"),
         user=os.getenv("DB_user"),
         password=os.getenv("DB_pass"),
@@ -19,7 +19,7 @@ def main():
     
     mode = get_mode()
     if mode == 0:
-        user(connection)
+        user(conn)
     else:
         admin()
 
@@ -46,7 +46,7 @@ def generate_card_number():
     return ''.join(map(str, card_number))
 
 
-def verify_card_number(card_number):
+def verify_card_number(card_number: str):
     # Check if the card number is 16 digits
     if len(card_number) != 16:
         return False
@@ -85,7 +85,7 @@ def generate_card(conn: MySQLConnection, accno, pin, name: str|None):
 
     cursor = conn.cursor()
 
-    query = "INSERT INTO cards (cardno, accno, pin, name) VALUES (%s, %s, %s, %s)" if name else "INSERT INTO card (cardno, accno, pin) VALUES (%s, %s, %s)"
+    query = "INSERT INTO cards (cardno, accno, pin, name) VALUES (%s, %s, %s, %s)" if name else "INSERT INTO cards (cardno, accno, pin) VALUES (%s, %s, %s)"
     params = (card_number, accno, pin, name) if name else (card_number, accno, pin)
 
     cursor.execute(query, params)
@@ -130,12 +130,23 @@ def get_mode():
 def transaction(conn: MySQLConnection, card_number: str, amount: int):
     cursor = conn.cursor()
 
-    query = "UPDATE account SET balance = balance - %s WHERE accno = (SELECT accno FROM card WHERE cardno = %s)"
+    query = "UPDATE account SET balance = balance - %s WHERE accno = (SELECT accno FROM cards WHERE cardno = %s)"
     params = (amount, card_number)
 
     cursor.execute(query, params)
 
     conn.commit()
+
+
+def verify_pin(conn: MySQLConnection, card_number: str, pin: str):
+    cursor = conn.cursor()
+
+    query = "SELECT pin FROM cards WHERE cardno = %s"
+    params = (card_number,)
+
+    cursor.execute(query, params)
+
+    return pin == cursor.fetchone()
 
 
 def add_user(conn: MySQLConnection, username):
@@ -149,23 +160,76 @@ def add_user(conn: MySQLConnection, username):
 
 
 def admin():
-    creds = get_creds('admin')
+    print("We didn't have the time to complete it!")
 
 
 def user(conn: MySQLConnection):
     input(); clear() # This is a weird fix IDK what is wrong
     creds = get_creds('user')
 
-    cursor = conn.cursor()
-
-    query = "SELECT cardno, pin FROM card"
-
-    cursor.execute(query)
-    print(cursor.fetchall())
-
-    # Check if card exists
+    # Checks if the card exists
+    if not check_card_exists(cred[0]):
+        print("The card does not exist! Please try again!")
+        user(conn)
     
+    if verify_pin(conn, *creds):
+        user_operation(conn, creds)
+
     # Offer options to the user such as "Withdraw, Check Balance"
+
+
+def user_operation(conn: MySQLConnection, creds):
+    import keyboard
+    
+    term = ["Choose an operation: \n", "[*]", "Withdraw\n", "[ ]", "View Balance"]
+    
+    clear()
+    print(''.join(term))
+    while True:
+        if keyboard.is_pressed('enter'):
+            clear()
+            if term[1][1] == '*':
+                withdraw(conn, creds)
+            else:
+                check_balance(conn, creds)
+                
+        if keyboard.is_pressed('down'):
+            if term[1][1] == '*':
+                term[1] = '[ ]'
+                term[3] = '[*]'
+                
+                clear()
+                print(''.join(term))
+            
+        if keyboard.is_pressed('up'):
+            if term[3][1] == '*':
+                term[3] = '[ ]'
+                term[1] = '[*]'
+                
+                clear()
+                print(''.join(term))
+
+
+def withdraw(conn: MySQLConnection, creds):
+    amount = input("How much money would you like to withdraw? ")
+    transaction(conn, creds[0], amount)
+
+    print("\nTransaction completed succesfully!")
+    input("Press any key to continue...")
+
+    user_operation()
+
+
+def check_balance(conn: MySQLConnection, creds):
+    cursor = conn.cursor()
+    query = "SELECT balance FROM user WHERE cardno = %s"
+    params = (creds[0],)
+
+    cursor.execute(query, params)
+    print(f"You have {cursor.fetchone()} left in your account.")
+    input("Press any key to continue...")
+
+    user_operation()
 
 
 def get_creds(user: str):
